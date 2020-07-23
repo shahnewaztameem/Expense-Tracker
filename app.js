@@ -20,8 +20,18 @@ var budgetController = (function () {
     totals: {
       exp: 0,
       inc: 0
-    }
+    },
+    budget: 0,
+    percentage: -1
   }
+
+  var calculateTotal = function (type) {
+    var sum = 0;
+    data.allItems[type].forEach(function (current) {
+      sum += current.value;
+    });
+    data.totals[type] = sum;
+  };
 
   return {
     addItem: function (type, desc, val) {
@@ -47,6 +57,36 @@ var budgetController = (function () {
 
       // return the new element
       return newItem;
+    },
+
+    calculateBudget: function () {
+      // calculate total income and expences 
+      calculateTotal('exp');
+      calculateTotal('inc');
+
+      // calculate the budget: income - expense
+      data.budget = data.totals.inc - data.totals.exp;
+
+      // calculate the percentage
+      if (data.totals.inc > 0) {
+        data.percentage = Math.round(data.totals.exp / data.totals.inc) * 100;
+      } else {
+        data.percentage = -1;
+      }
+
+    },
+
+    getBudget: function () {
+      return {
+        budget: data.budget,
+        totalInc: data.totals.inc,
+        totalExp: data.totals.exp,
+        percentage: data.percentage
+      }
+    },
+
+    testing: function () {
+      return console.log(data)
     }
   }
 })();
@@ -67,7 +107,7 @@ var UIController = (function () {
       return {
         type: document.querySelector(DOMStrings.inputType).value,
         description: document.querySelector(DOMStrings.inputDescription).value,
-        value: document.querySelector(DOMStrings.inputValue).value
+        value: parseFloat(document.querySelector(DOMStrings.inputValue).value)
       };
     },
 
@@ -92,7 +132,18 @@ var UIController = (function () {
       // insert html to the dom
       document.querySelector(element).insertAdjacentHTML('beforeend', newHtml);
     },
+    clearFields: function () {
+      var fields, fieldsArray;
+      fields = document.querySelectorAll(DOMStrings.inputDescription + ', ' + DOMStrings.inputValue);
 
+      fieldsArray = Array.prototype.slice.call(fields);
+
+      fieldsArray.forEach(function (current, index, array) {
+        current.value = '';
+      });
+
+      fieldsArray[0].focus();
+    },
     getDOMStrings: function () {
       return DOMStrings;
     }
@@ -117,19 +168,36 @@ var controller = (function (budgetCtrl, UICtrl) {
     });
   }
 
+  var updateBudget = function () {
+    // calculate the budget
+    budgetCtrl.calculateBudget();
+
+    // return the budget
+    var budget = budgetCtrl.getBudget();
+
+    // display the budget on the UI
+    console.log(budget)
+  }
+
   var ctrlAddItem = function () {
     var input, newItem;
     // get field input data
     input = UICtrl.getInput();
 
-    // add item to the budget controller
-    newItem = budgetCtrl.addItem(input.type, input.description, input.value);
+    // validation
+    if (input.description !== '' && !isNaN(input.value) && input.value > 0) {
+      // add item to the budget controller
+      newItem = budgetCtrl.addItem(input.type, input.description, input.value);
 
-    // add the new item to the interface
-    UICtrl.addListItem(newItem, input.type);
-    // calculate the budget
+      // add the new item to the interface
+      UICtrl.addListItem(newItem, input.type);
 
-    // display the budget on the UI
+      // clear the fields
+      UICtrl.clearFields();
+
+      // calculate and update budget
+      updateBudget();
+    }
 
   };
 
